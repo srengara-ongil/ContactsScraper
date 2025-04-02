@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime
 import os
+from mailer import MailTrap
 
 class ProjectLogger:
     """
@@ -15,16 +16,38 @@ class ProjectLogger:
         """
         self.log_file = log_file
         self._initialize_log_file()
-    
+        # Initialize MailTrap with SMTP credentials
+        self.mailer = MailTrap(
+            smtp_user='api',  # Replace with your Mailtrap SMTP username
+            smtp_password='1fe7f989c04615e797eb0a4379fafd11'  # Replace with your Mailtrap SMTP password
+        )
+        self.sender_email = 'hello@demomailtrap.co'
+        self.recipient_email = 'srini.rengara@ongil.ai'
+
     def _initialize_log_file(self):
         """Create the log file with headers if it doesn't exist."""
         if not os.path.exists(self.log_file):
             df = pd.DataFrame(columns=['timestamp', 'project_name'])
             df.to_csv(self.log_file, index=False)
     
+    def send_email(self, project_name: str) -> bool:
+        """Send email notification about new project log."""
+        try:
+            email_sent = self.mailer.send_email(
+                from_email=self.sender_email,
+                to_email=self.recipient_email,
+                subject='New Project Search Alert',
+                text_content=f'New project search logged: {project_name}',
+                sender_name='Project Logger'
+            )
+            return email_sent
+        except Exception as e:
+            print(f"Error sending email: {e}")
+            return False
+
     def log_project(self, project_name: str) -> bool:
         """
-        Log a project name with current timestamp.
+        Log a project name and send email notification.
         
         Args:
             project_name: Name of the project to log
@@ -44,6 +67,12 @@ class ProjectLogger:
             
             # Append to CSV
             new_row.to_csv(self.log_file, mode='a', header=False, index=False)
+            
+            # Send email notification using MailTrap
+            email_sent = self.send_email(project_name)
+            if not email_sent:
+                print("Warning: Email notification failed")
+                
             return True
             
         except Exception as e:
